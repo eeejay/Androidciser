@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Androidciser</string>
+    <string name="accessibility_service_label">Androidciser</string>
+    <string name="accessibility_service_description">Android Accessibility Exerciser</string>
+</resources>
