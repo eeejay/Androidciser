@@ -2,6 +2,7 @@ package org.monotonous.androidciser;
 
 import android.accessibilityservice.AccessibilityService;
 import android.app.NotificationChannel;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
@@ -128,7 +129,7 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
             }
         }
 
-        private JSONObject dumpNodeTreeInternal(AccessibilityNodeInfo node) throws JSONException {
+        private JSONObject nodeToJSON(AccessibilityNodeInfo node) throws JSONException {
             JSONObject rv = new JSONObject();
             rv.put("className", node.getClassName());
             rv.put("text", node.getText());
@@ -149,17 +150,6 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
                     extras.put(key, JSONObject.wrap(extrasBundle.get(key)));
                 }
                 rv.put("extras", extras);
-            }
-
-            int childCount = node.getChildCount();
-            if (childCount > 0) {
-                JSONArray children = new JSONArray();
-                for (int i = 0; i < childCount; i++) {
-                    AccessibilityNodeInfo child = node.getChild(i);
-                    children.put(dumpNodeTreeInternal(child));
-                    child.recycle();
-                }
-                rv.put("children", children);
             }
 
             JSONArray flags = new JSONArray();
@@ -184,6 +174,62 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                     node.isShowingHintText()) flags.put("showingHintText");
             rv.put("flags", flags);
+
+            AccessibilityNodeInfo.CollectionInfo collectionInfo = node.getCollectionInfo();
+            if (collectionInfo != null) {
+                JSONObject obj = new JSONObject();
+                obj.put("columnCount", collectionInfo.getColumnCount());
+                obj.put("rowCount", collectionInfo.getRowCount());
+                obj.put("hierarchical", collectionInfo.isHierarchical());
+                switch(collectionInfo.getSelectionMode()) {
+                    case AccessibilityNodeInfo.CollectionInfo.SELECTION_MODE_MULTIPLE:
+                        obj.put("selectionMode", "multiple");
+                    case AccessibilityNodeInfo.CollectionInfo.SELECTION_MODE_SINGLE:
+                        obj.put("selectionMode", "single");
+                    default:
+                        obj.put("selectionMode", "none");
+                }
+                rv.put("collectionInfo", collectionInfo);
+            }
+
+            AccessibilityNodeInfo.CollectionItemInfo collectionItem = node.getCollectionItemInfo();
+            if (collectionItem != null) {
+                JSONObject obj = new JSONObject();
+                obj.put("columnIndex", collectionItem.getColumnIndex());
+                obj.put("columnSpan", collectionItem.getColumnSpan());
+                obj.put("rowIndex", collectionItem.getRowIndex());
+                obj.put("rowSpan", collectionItem.getRowSpan());
+                obj.put("heading", collectionItem.isHeading());
+                obj.put("selected", collectionItem.isSelected());
+                rv.put("collectionItemInfo", obj);
+            }
+
+            JSONArray bounds = new JSONArray();
+            Rect outBounds = new Rect();
+            node.getBoundsInScreen(outBounds);
+            bounds.put(outBounds.left);
+            bounds.put(outBounds.top);
+            bounds.put(outBounds.width());
+            bounds.put(outBounds.height());
+            rv.put("bounds", bounds);
+
+            return rv;
+        }
+
+        private JSONObject dumpNodeTreeInternal(AccessibilityNodeInfo node) throws JSONException {
+            JSONObject rv = nodeToJSON(node);
+
+            int childCount = node.getChildCount();
+            if (childCount > 0) {
+                JSONArray children = new JSONArray();
+                for (int i = 0; i < childCount; i++) {
+                    AccessibilityNodeInfo child = node.getChild(i);
+                    children.put(dumpNodeTreeInternal(child));
+                    child.recycle();
+                }
+                rv.put("children", children);
+            }
+
             return rv;
         }
 
