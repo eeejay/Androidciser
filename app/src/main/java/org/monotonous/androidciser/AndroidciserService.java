@@ -125,7 +125,11 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
                 root.recycle();
                 return rv;
             } catch (JSONException e) {
-                return new JSONObject();
+                final JSONObject err = new JSONObject();
+                try {
+                    err.put("error", e.toString());
+                } catch (JSONException _) {}
+                return err;
             }
         }
 
@@ -135,6 +139,7 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
             rv.put("text", node.getText());
             rv.put("contentDescription", node.getContentDescription());
             rv.put("viewIdResourceName", node.getViewIdResourceName());
+            rv.put("hintText", node.getHintText());
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 List<String> extraData = node.getAvailableExtraData();
@@ -170,7 +175,7 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
             if (node.isPassword()) flags.put("password");
             if (node.isScrollable()) flags.put("scrollable");
             if (node.isSelected()) flags.put("selected");
-            if (node.isVisibleToUser()) flags.put("showingHintText");
+            if (node.isVisibleToUser()) flags.put("visibleToUser");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                     node.isShowingHintText()) flags.put("showingHintText");
             rv.put("flags", flags);
@@ -189,7 +194,7 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
                     default:
                         obj.put("selectionMode", "none");
                 }
-                rv.put("collectionInfo", collectionInfo);
+                rv.put("collectionInfo", obj);
             }
 
             AccessibilityNodeInfo.CollectionItemInfo collectionItem = node.getCollectionItemInfo();
@@ -202,6 +207,26 @@ public class AndroidciserService extends AccessibilityService implements OnInitL
                 obj.put("heading", collectionItem.isHeading());
                 obj.put("selected", collectionItem.isSelected());
                 rv.put("collectionItemInfo", obj);
+            }
+
+            AccessibilityNodeInfo.RangeInfo rangeInfo = node.getRangeInfo();
+            if (rangeInfo != null) {
+                JSONObject obj = new JSONObject();
+                obj.put("current", Float.toString(rangeInfo.getCurrent()));
+                obj.put("max", Float.toString(rangeInfo.getMax()));
+                obj.put("min", Float.toString(rangeInfo.getMin()));
+                switch (rangeInfo.getType()) {
+                    case AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT:
+                        obj.put("type", "float");
+                        break;
+                    case AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_INT:
+                        obj.put("type", "int");
+                        break;
+                    case AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_PERCENT:
+                        obj.put("type", "percent");
+                        break;
+                }
+                rv.put("rangeInfo", obj);
             }
 
             JSONArray bounds = new JSONArray();
